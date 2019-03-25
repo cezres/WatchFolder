@@ -43,9 +43,13 @@ public class WatchFolder {
         ref = nil
     }
 
-    private func start() throws {
+    public func start() throws {
         guard directoryDescriptor == nil && directoryFD == -1 && kq == -1 else { return }
-        guard let path = url.path.cString(using: .utf8) else { return }
+        guard let path = url.path.cString(using: .utf8) else { throw WatchFolderError.invalidFolderPath }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue else {
+            throw WatchFolderError.invalidFolderPath
+        }
         var error: Error!
 
         directoryFD = open(path, O_EVTONLY)
