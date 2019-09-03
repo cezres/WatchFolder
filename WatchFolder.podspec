@@ -1,7 +1,7 @@
 Pod::Spec.new do |spec|
 
   spec.name         = "WatchFolder"
-  spec.version      = "0.0.1"
+  spec.version      = "0.1.0"
   spec.summary      = "观察文件夹内文件的变化."
   spec.description  = 
 
