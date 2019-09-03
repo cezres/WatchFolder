@@ -17,7 +17,7 @@ public enum WatchFolderError: Error {
     case otherError
 }
 
-public class WatchFolder {
+public class WatchFolder: NSObject {
     fileprivate var directoryFD: Int32 = -1
     fileprivate var directoryDescriptor: CFFileDescriptor!
     fileprivate var kq: Int32 = -1
@@ -25,6 +25,7 @@ public class WatchFolder {
 
     public let url: URL
     public weak var delegate: WatchFolderDelegate?
+    public var callbackInterval: TimeInterval = 0.5
 
     public init(url: URL) {
         self.url = url
@@ -90,20 +91,25 @@ public class WatchFolder {
         throw error ?? WatchFolderError.otherError
     }
 
-    fileprivate func callback() {
+    @objc func callback() {
         delegate?.watchFolderNotification(self)
+    }
+
+    fileprivate func receivedFileChangeMessage() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(callback), object: nil)
+        perform(#selector(callback), with: nil, afterDelay: callbackInterval)
     }
 }
 
 private func FileDescriptorCallBack(kqRef: CFFileDescriptor?, callBackTypes: CFOptionFlags, info: UnsafeMutableRawPointer?) -> Void {
-    guard let result = info?.load(as: WatchFolder.self).ref else { return }
+    guard let watchFolder = info?.load(as: WatchFolder.self).ref else { return }
     var event = kevent()
     var timeout = timespec(tv_sec: 0, tv_nsec: 0)
     var eventCount: Int32 = 0
-    eventCount = kevent(result.kq, nil, 0, &event, 1, &timeout)
+    eventCount = kevent(watchFolder.kq, nil, 0, &event, 1, &timeout)
     assert(eventCount >= 0 && eventCount < 2)
-    CFFileDescriptorEnableCallBacks(result.directoryDescriptor, kCFFileDescriptorReadCallBack)
+    CFFileDescriptorEnableCallBacks(watchFolder.directoryDescriptor, kCFFileDescriptorReadCallBack)
 
-    result.callback()
+    watchFolder.receivedFileChangeMessage()
 }
 
